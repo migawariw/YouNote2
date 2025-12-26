@@ -218,7 +218,7 @@ document.getElementById('new-memo').onclick = async () => {
   const ref = await addDoc(
     collection(db, 'users', auth.currentUser.uid, 'memos'),
     {
-      title: 'New memo',
+      title: '',
       content: '',
       updated: Date.now()
     }
