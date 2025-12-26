@@ -248,10 +248,19 @@ document.getElementById('back').onclick = () => {
 /* ---------- Save ---------- */
 async function saveMemo() {
   if (!currentMemoId) return;
+
+  let title = titleInput.value.trim();
+
+  if (!title) {
+    // editor の最初の行をタイトルにする
+    const firstLine = editor.innerText.split('\n')[0].trim();
+    title = firstLine || '';
+  }
+
   await setDoc(
     doc(db, 'users', auth.currentUser.uid, 'memos', currentMemoId),
     {
-      title: titleInput.value || 'Untitled',
+      title: title,
       content: editor.innerHTML,
       updated: Date.now()
     },
@@ -261,6 +270,14 @@ async function saveMemo() {
 
 editor.addEventListener('input', saveMemo);
 titleInput.addEventListener('input', saveMemo);
+
+document.addEventListener('click', (e) => {
+  // クリックした要素が editor や title じゃなければ
+  if (!e.target.closest('#editor') && !e.target.closest('#title')) {
+    // フォーカスを外す
+    document.activeElement.blur();
+  }
+});
 
 /* ---------- Paste ---------- */
 editor.addEventListener('paste', (e) => {
