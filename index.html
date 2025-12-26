@@ -251,11 +251,11 @@ async function saveMemo() {
 
   let title = titleInput.value.trim();
 
-  // if (!title) {
+  if (!title) {
     // editor の最初の行をタイトルにする
     const firstLine = editor.innerText.split('\n')[0].trim();
     title = firstLine || '';
-  // }
+  }
 
   await setDoc(
     doc(db, 'users', auth.currentUser.uid, 'memos', currentMemoId),
