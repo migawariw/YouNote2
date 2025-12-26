@@ -289,56 +289,17 @@ const yt = text.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
 if (yt) {
   const videoId = yt[1];
 
-  // ラッパー div
-  const wrap = document.createElement('div');
-  wrap.className = 'video';
-  wrap.style.position = 'relative';
-  wrap.style.cursor = 'pointer';
-  wrap.style.maxWidth = '560px';
-  wrap.style.margin = '12px auto';
-
-  // サムネイル画像
-  const thumb = document.createElement('img');
-  thumb.src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-  thumb.alt = 'YouTube video';
-  thumb.style.display = 'block';
-  thumb.style.width = '100%';
-  wrap.appendChild(thumb);
-
-  // 再生ボタンオーバーレイ
-  const play = document.createElement('div');
-  play.textContent = '▶';
-  play.style.position = 'absolute';
-  play.style.top = '0';
-  play.style.left = '0';
-  play.style.width = '100%';
-  play.style.height = '100%';
-  play.style.display = 'flex';
-  play.style.alignItems = 'center';
-  play.style.justifyContent = 'center';
-  play.style.fontSize = '64px';
-  play.style.color = 'white';
-  play.style.background = 'rgba(0,0,0,0.3)';
-  wrap.appendChild(play);
-
-  // クリック時に iframe を生成（note方式）
-  wrap.onclick = () => {
-    const iframe = document.createElement('iframe');
-    iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=0&modestbranding=1&rel=0&playsinline=1`;
-    iframe.allowFullscreen = true;
-    iframe.style.width = '100%';
-    iframe.style.height = '100%';
-    // iframe.style.minHeight = '315px'; 
-    wrap.innerHTML = '';
-    wrap.appendChild(iframe);
-  };
+  const iframe = document.createElement('iframe');
+  iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=0&modestbranding=1&rel=0&playsinline=1`;
+  iframe.frameBorder = "0";
+  iframe.allowFullscreen = true;
 
   // 現在のカーソル位置に挿入
   const range = document.getSelection().getRangeAt(0);
-  range.insertNode(wrap);
+  range.insertNode(iframe);
   range.collapse(false);
-  return;
 }
+
 });
 </script>
 
