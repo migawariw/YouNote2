@@ -324,7 +324,7 @@ if (yt) {
   // クリック時に iframe を生成（note方式）
   wrap.onclick = () => {
     const iframe = document.createElement('iframe');
-    iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&modestbranding=1&rel=0&playsinline=1`;
+    iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=0&modestbranding=1&rel=0&playsinline=1`;
     iframe.allowFullscreen = true;
     iframe.style.width = '100%';
     iframe.style.height = '100%';
