@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Clipper</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: sans-serif;
+      font-size: 16px;
+    }
+
+    section {
+      max-width: 800px;
+      margin: auto;
+    }
+
+    [hidden] {
+      display: none;
+    }
+
+    input, button {
+      font-size: 16px;
+      margin: 4px 0;
+    }
+
+    ul {
+      padding-left: 0;
+    }
+
+    li {
+      list-style: none;
+      padding: 8px;
+      border-bottom: 1px solid #ddd;
+      cursor: pointer;
+    }
+
+    li:hover {
+      background: #f5f5f5;
+    }
+
+    #title {
+      width: 100%;
+      font-size: 20px;
+      margin: 8px 0;
+    }
+
+    #editor {
+      min-height: 70vh;
+      outline: none;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border-top: 1px solid #ccc;
+      padding-top: 16px;
+    }
+
+    img {
+      max-width: 100%;
+      display: block;
+      margin: 8px 0;
+    }
+
+    /* YouTube */
+    .video {
+      position: relative;
+      width: 100%;
+      padding-top: 56.25%;
+      margin: 12px auto;
+      /* max-width: 560px; */
+    }
+
+    .video iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+
+    @media (max-width: 768px) {
+      .video {
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- 🔐 Login -->
+<section id="view-login">
+  <h2>Login</h2>
+  <input id="email" placeholder="email"><br>
+  <input id="password" type="password" placeholder="password"><br>
+  <button id="login">Login</button>
+  <button id="signup">Sign up</button><br><br>
+  <button id="google-login">Login with Google</button>
+</section>
+
+<!-- 📂 List -->
+<section id="view-list" hidden>
+  <h2>Memos</h2>
+  <button id="new-memo">＋ New memo</button>
+  <ul id="memo-list"></ul>
+  <button id="logout">Logout</button>
+</section>
+
+<!-- ✏️ Editor -->
+<section id="view-editor" hidden>
+  <button id="back">← Back</button>
+  <input id="title" placeholder="Title">
+  <div id="editor" contenteditable="true"></div>
+</section>
+
+<script type="module">
+/* ---------- Firebase ---------- */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  GoogleAuthProvider,
+  signInWithPopup
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  doc,
+  getDoc,
+  setDoc
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+/* 🔴 自分の Firebase 設定 */
+const firebaseConfig = {
+ apiKey: "AIzaSyCdDf0GH80PoGlcbk2yjlaVQfP01Gk9m18",
+  authDomain: "noteeditor-ba1db.firebaseapp.com",
+  projectId: "noteeditor-ba1db",
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+/* ---------- DOM ---------- */
+const views = {
+  login: document.getElementById('view-login'),
+  list: document.getElementById('view-list'),
+  editor: document.getElementById('view-editor')
+};
+
+const emailInput = document.getElementById('email');
+const passwordInput = document.getElementById('password');
+const memoList = document.getElementById('memo-list');
+const editor = document.getElementById('editor');
+const titleInput = document.getElementById('title');
+
+/* ---------- View ---------- */
+function show(view) {
+  Object.values(views).forEach(v => v.hidden = true);
+  views[view].hidden = false;
+}
+
+/* ---------- Auth ---------- */
+document.getElementById('login').onclick = () =>
+  signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
+
+document.getElementById('signup').onclick = () =>
+  createUserWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
+
+document.getElementById('logout').onclick = () => signOut(auth);
+
+const provider = new GoogleAuthProvider();
+document.getElementById('google-login').onclick = async () => {
+  try {
+    await signInWithPopup(auth, provider);
+  } catch (e) {
+    alert("エラーです\n\n" + e.code);
+    console.log(e);
+  }
+};
+
+
+/* ---------- State ---------- */
+let currentMemoId = null;
+
+/* ---------- Auth state ---------- */
+onAuthStateChanged(auth, user => {
+  if (user) {
+    loadMemos();
+    show('list');
+  } else {
+    show('login');
+  }
+});
+
+/* ---------- Load list ---------- */
+async function loadMemos() {
+  memoList.innerHTML = '';
+  const q = collection(db, 'users', auth.currentUser.uid, 'memos');
+  const snap = await getDocs(q);
+
+  snap.forEach(d => {
+    const li = document.createElement('li');
+    li.textContent = d.data().title || 'Untitled';
+    li.onclick = () => openEditor(d.id);
+    memoList.appendChild(li);
+  });
+}
+
+/* ---------- New memo ---------- */
+document.getElementById('new-memo').onclick = async () => {
+  const ref = await addDoc(
+    collection(db, 'users', auth.currentUser.uid, 'memos'),
+    {
+      title: 'New memo',
+      content: '',
+      updated: Date.now()
+    }
+  );
+  openEditor(ref.id);
+};
+
+/* ---------- Open editor ---------- */
+async function openEditor(id) {
+  currentMemoId = id;
+  const ref = doc(db, 'users', auth.currentUser.uid, 'memos', id);
+  const snap = await getDoc(ref);
+
+  const data = snap.data();
+  titleInput.value = data.title || '';
+  editor.innerHTML = data.content || '';
+  show('editor');
+}
+
+/* ---------- Back ---------- */
+document.getElementById('back').onclick = () => {
+  currentMemoId = null;
+  loadMemos();
+  show('list');
+};
+
+/* ---------- Save ---------- */
+async function saveMemo() {
+  if (!currentMemoId) return;
+  await setDoc(
+    doc(db, 'users', auth.currentUser.uid, 'memos', currentMemoId),
+    {
+      title: titleInput.value || 'Untitled',
+      content: editor.innerHTML,
+      updated: Date.now()
+    },
+    { merge: true }
+  );
+}
+
+editor.addEventListener('input', saveMemo);
+titleInput.addEventListener('input', saveMemo);
+
+/* ---------- Paste ---------- */
+editor.addEventListener('paste', (e) => {
+  e.preventDefault();
+  const items = e.clipboardData.items;
+  const range = document.getSelection().getRangeAt(0);
+
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = document.createElement('img');
+        img.src = reader.result;
+        range.insertNode(img);
+        range.collapse(false);
+      };
+      reader.readAsDataURL(item.getAsFile());
+      return;
+    }
+  }
+
+  const text = e.clipboardData.getData('text/plain');
+  const yt = text.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
+
+if (yt) {
+  const videoId = yt[1];
+
+  // ラッパー
+  const wrap = document.createElement('div');
+  wrap.className = 'video';
+  wrap.style.cursor = 'pointer';
+
+  // サムネ
+  const thumb = document.createElement('img');
+  thumb.src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+  thumb.alt = 'YouTube video';
+
+  // 再生ボタン（CSSで見た目だけ）
+  const play = document.createElement('div');
+  play.textContent = '▶';
+  play.style.position = 'absolute';
+  play.style.inset = '0';
+  play.style.display = 'flex';
+  play.style.alignItems = 'center';
+  play.style.justifyContent = 'center';
+  play.style.fontSize = '64px';
+  play.style.color = 'white';
+  play.style.background = 'rgba(0,0,0,0.3)';
+
+  wrap.appendChild(thumb);
+  wrap.appendChild(play);
+
+  // クリックしたら iframe を生成
+  wrap.onclick = () => {
+    const iframe = document.createElement('iframe');
+    iframe.src =
+      `https://www.youtube-nocookie.com/embed/${videoId}?` +
+      `autoplay=1&modestbranding=1&rel=0&playsinline=1`;
+    iframe.allowFullscreen = true;
+
+    wrap.innerHTML = '';
+    wrap.appendChild(iframe);
+  };
+
+  range.insertNode(wrap);
+  range.collapse(false);
+  return;
+}
+
+</script>
+
+</body>
+</html>
